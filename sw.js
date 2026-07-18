@@ -1,4 +1,4 @@
-const CACHE = 'npte-v2';
+const CACHE = 'npte-v3';  // 버전 올려서 기존 캐시 강제 삭제
 const BASE = '/NPTE-Study';
 const ASSETS = [
   BASE + '/',
@@ -23,9 +23,15 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Google Sheets 요청은 캐시하지 않음 (항상 최신 데이터)
   if (e.request.url.includes('docs.google.com') || e.request.url.includes('script.google.com')) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+  // index.html은 항상 네트워크 우선 (최신 버전 보장)
+  if (e.request.url.endsWith('/') || e.request.url.endsWith('index.html')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
     return;
   }
   e.respondWith(
