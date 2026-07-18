@@ -736,7 +736,43 @@ async function loadData(forceReload=false){
 function buildCatGrid(){const g=document.getElementById('cat-grid');g.innerHTML='';CAT_ORDER.forEach(cat=>{const cnt=ALL_QS.filter(q=>q.cat===cat).length;if(!cnt)return;const d=document.createElement('div');d.className='cat-btn';d.dataset.cat=cat;d.innerHTML='<span class="em">'+(CAT_EMOJI[cat]||'📚')+'</span><div class="nm">'+cat+'</div><div class="ct">'+cnt+' Qs</div><div class="ck">✓</div>';d.onclick=()=>toggleCat(cat,d);g.appendChild(d);});}
 function buildYearChips(){const years=[...new Set(ALL_QS.map(q=>q.year).filter(Boolean))].sort();const w=document.getElementById('year-chips');w.innerHTML='';years.forEach(y=>{const d=document.createElement('div');d.className='chip';d.dataset.year=y;d.textContent=y+' ('+ALL_QS.filter(q=>q.year===y).length+')';d.onclick=()=>toggleChip(selYears,y,d);w.appendChild(d);});}
 function buildSrcChips(){const srcs=[...new Set(ALL_QS.map(q=>q.src).filter(Boolean))].sort();const w=document.getElementById('src-chips');w.innerHTML='';srcs.forEach(s=>{const d=document.createElement('div');d.className='chip';d.dataset.src=s;d.textContent=s+' ('+ALL_QS.filter(q=>q.src===s).length+')';d.onclick=()=>toggleChip(selSrcs,s,d);w.appendChild(d);});}
-function setMode(m){mode=m;document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===m));['cat','year','src','bm','wr'].forEach(id=>document.getElementById('mode-'+id).style.display=(id===m)?'':'none');document.getElementById('mode-opts').style.display=['cat','year','src'].includes(m)?'':'none';updateBtn();}
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===m));
+  ['cat','year','src','bm','wr'].forEach(id=>document.getElementById('mode-'+id).style.display=(id===m)?'':'none');
+  document.getElementById('mode-opts').style.display=['cat','year','src'].includes(m)?'':'none';
+  const wrCount=document.getElementById('wr-count');
+  if(wrCount)wrCount.textContent=store.wrongs.size?'('+store.wrongs.size+')':'';
+  if(m==='bm')renderModeList('bm');
+  if(m==='wr')renderModeList('wr');
+  updateBtn();
+}
+function renderModeList(m){
+  const ids=m==='bm'?[...store.bm]:[...store.wrongs];
+  const el=document.getElementById(m+'-list');
+  if(!el)return;
+  if(!ids.length){
+    const msg=m==='bm'?'⭐ 퀴즈 중 ☆ 버튼을 누르면 북마크됩니다.':'❌ 틀린 문제가 여기에 누적됩니다.';
+    el.innerHTML='<p style="color:var(--text2);font-size:14px;margin-top:8px;line-height:1.7">'+msg+'</p>';
+    return;
+  }
+  const items=ALL_QS.filter(q=>ids.includes(q.id)).sort((a,b)=>{
+    if(a.src!==b.src)return a.src.localeCompare(b.src);return a.qnum-b.qnum;
+  });
+  const color=m==='bm'?'var(--warn)':'var(--danger)';
+  const fn=m==='bm'?'removeBm':'removeWr';
+  el.innerHTML=items.map(function(q){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;background:var(--bg2);gap:8px">'
+      +'<div style="min-width:0">'
+        +'<div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:2px">('+q.src+') Q'+q.qnum+' · '+(q.sub||q.cat)+'</div>'
+        +'<div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(q.stem.substring(0,55))+(q.stem.length>55?'…':'')+'</div>'
+      +'</div>'
+      +'<button onclick="'+fn+'(this.dataset.id)" data-id="'+q.id+'" style="flex-shrink:0;padding:5px 11px;border:1px solid var(--border);border-radius:20px;background:none;color:var(--text3);font-size:12px;cursor:pointer">해제</button>'
+    +'</div>';
+  }).join('');
+}
+function removeBm(id){store.bm.delete(id);saveStore();updateStats();renderModeList('bm');updateBtn();}
+function removeWr(id){store.wrongs.delete(id);saveStore();updateStats();renderModeList('wr');updateBtn();}
 function toggleCat(cat,el){selCats.has(cat)?selCats.delete(cat):selCats.add(cat);el.classList.toggle('selected',selCats.has(cat));document.getElementById('cat-sel-n').textContent=selCats.size?'('+selCats.size+' selected)':'';updateBtn();}
 function toggleChip(set,val,el){set.has(val)?set.delete(val):set.add(val);el.classList.toggle('selected',set.has(val));updateBtn();}
 function setOrder(o){order=o;document.querySelectorAll('[data-order]').forEach(c=>c.classList.toggle('selected',c.dataset.order===o));}
@@ -788,6 +824,8 @@ function updateStats(){
   document.getElementById('stat-bm').textContent=store.bm.size+' ⭐';
   const wrCount=document.getElementById('wr-count');
   if(wrCount)wrCount.textContent=store.wrongs.size?'('+store.wrongs.size+')':'';
+  if(mode==='bm')renderModeList('bm');
+  if(mode==='wr')renderModeList('wr');
 }
 function startQuiz(){let qs=getFiltered();if(!qs.length)return;if(order==='rand')qs=[...qs].sort(()=>Math.random()-.5);const n=sessCount===0?qs.length:Math.min(sessCount,qs.length);sessQs=qs.slice(0,n);qIdx=0;sCorrect=0;sWrong=0;sWrongIds=[];seenQIds=new Set();sessStartTime=Date.now();sessionAnswers={};answered=false;translateOn=false;document.getElementById('btn-translate').classList.remove('active');document.getElementById('btn-translate').textContent='🌐 한국어';showScreen('quiz');showQ();}
 function showQ(){const q=sessQs[qIdx];answered=false;translateOn=false;trStem='';trOpts=[];document.getElementById('btn-translate').classList.remove('active');document.getElementById('btn-translate').textContent='🌐 한국어';document.getElementById('q-counter').textContent=(qIdx+1)+' / '+sessQs.length;document.getElementById('prog').style.width=(qIdx/sessQs.length*100)+'%';document.getElementById('q-source').textContent='('+q.src+') Q'+q.qnum+' · '+(q.sub||q.cat);
