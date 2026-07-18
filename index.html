@@ -746,53 +746,115 @@ function setMode(m){
   updateBtn();
 }
 function renderModeList(m){
-  const ids=m==='bm'?[...store.bm]:[...store.wrongs];
-  const el=document.getElementById(m+'-list');
+  var ids=m==='bm'?[...store.bm]:[...store.wrongs];
+  var el=document.getElementById(m+'-list');
   if(!el)return;
+  if(!ALL_QS.length){el.innerHTML='<p style="color:var(--text2);font-size:14px;padding:12px 0">⏳ 로딩 중...</p>';return;}
   if(!ids.length){
-    const msg=m==='bm'?'⭐ 퀴즈 중 ☆ 버튼을 누르면 북마크됩니다.':'❌ 틀린 문제가 여기에 누적됩니다.';
-    el.innerHTML='<p style="color:var(--text2);font-size:14px;margin-top:8px;line-height:1.7">'+msg+'</p>';
-    return;
-  }
-  const items=ALL_QS.filter(q=>ids.includes(q.id)).sort((a,b)=>{
-    if(a.src!==b.src)return a.src.localeCompare(b.src);return a.qnum-b.qnum;
-  });
-  const color=m==='bm'?'var(--warn)':'var(--danger)';
-  const fn=m==='bm'?'removeBm':'removeWr';
+    var msg=m==='bm'?'⭐ 퀴즈 중 ☆ 버튼을 누르면 북마크됩니다.':'❌ 틀린 문제가 여기에 누적됩니다.';
+    el.innerHTML='<p style="color:var(--text2);font-size:14px;padding:12px 0;line-height:1.7">'+msg+'</p>';return;}
+  var items=ALL_QS.filter(function(q){return ids.includes(q.id);}).sort(function(a,b){
+    return a.src!==b.src?a.src.localeCompare(b.src):a.qnum-b.qnum;});
+  if(!items.length){el.innerHTML='<p style="color:var(--text2);font-size:14px;padding:12px 0">'+(m==='bm'?'북마크 없음':'틀린 문제 없음')+'</p>';return;}
+  var color=m==='bm'?'var(--warn)':'var(--danger)';
   el.innerHTML=items.map(function(q){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;background:var(--bg2);gap:8px">'
-      +'<div style="min-width:0">'
-        +'<div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:2px">('+q.src+') Q'+q.qnum+' · '+(q.sub||q.cat)+'</div>'
-        +'<div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(q.stem.substring(0,55))+(q.stem.length>55?'…':'')+'</div>'
+    var rightBtn=m==='bm'
+      ?'<button data-m="'+m+'" data-id="'+q.id+'" onclick="mlRemove(this.dataset.m,this.dataset.id)" style="flex-shrink:0;border:none;border-left:1px solid var(--border);border-radius:0;background:none;color:var(--text3);font-size:12px;padding:0 13px;cursor:pointer;writing-mode:vertical-lr">해제</button>'
+      :'';
+    return '<div id="ml-'+m+'-'+q.id+'" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;background:var(--bg2)">'
+      +'<div style="display:flex;align-items:stretch">'
+        +'<div data-m="'+m+'" data-id="'+q.id+'" onclick="toggleMlItem(this.dataset.m,this.dataset.id)" style="flex:1;padding:12px 14px;cursor:pointer;min-width:0">'
+          +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+            +'<strong style="color:'+color+';font-size:12px">('+q.src+') Q'+q.qnum+'</strong>'
+            +'<span style="font-size:11px;color:var(--text3)">'+escHtml(q.sub||q.cat)+'</span>'
+            +'<span id="mla-'+m+'-'+q.id+'" style="margin-left:auto;color:var(--accent2);font-size:18px;transition:transform .2s;display:inline-block">▾</span>'
+          +'</div>'
+          +'<div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(q.stem.substring(0,65))+(q.stem.length>65?'…':'')+'</div>'
+        +'</div>'+rightBtn
       +'</div>'
-      +'<button onclick="'+fn+'(this.dataset.id)" data-id="'+q.id+'" style="flex-shrink:0;padding:5px 11px;border:1px solid var(--border);border-radius:20px;background:none;color:var(--text3);font-size:12px;cursor:pointer">해제</button>'
+      +'<div id="mlb-'+m+'-'+q.id+'" data-m="'+m+'" data-id="'+q.id+'" onclick="toggleMlItem(this.dataset.m,this.dataset.id)" style="display:none;border-top:1px solid var(--border);padding:14px"></div>'
     +'</div>';
   }).join('');
 }
-function removeBm(id){store.bm.delete(id);saveStore();updateStats();renderModeList('bm');updateBtn();}
-function removeWr(id){store.wrongs.delete(id);saveStore();updateStats();renderModeList('wr');updateBtn();}
-function toggleCat(cat,el){selCats.has(cat)?selCats.delete(cat):selCats.add(cat);el.classList.toggle('selected',selCats.has(cat));document.getElementById('cat-sel-n').textContent=selCats.size?'('+selCats.size+' selected)':'';updateBtn();}
-function toggleChip(set,val,el){set.has(val)?set.delete(val):set.add(val);el.classList.toggle('selected',set.has(val));updateBtn();}
-function setOrder(o){order=o;document.querySelectorAll('[data-order]').forEach(c=>c.classList.toggle('selected',c.dataset.order===o));}
-function setCount(n){sessCount=n;document.querySelectorAll('[data-n]').forEach(c=>c.classList.toggle('selected',+c.dataset.n===n));updateBtn();}
-function getFiltered(){
-  let qs;
-  if(mode==='bm')qs=ALL_QS.filter(q=>store.bm.has(q.id)&&!store.skip.has(q.id));
-  else if(mode==='wr')qs=ALL_QS.filter(q=>store.wrongs.has(q.id)&&!store.skip.has(q.id));
-  else{
-    qs=ALL_QS.filter(q=>!store.skip.has(q.id));
-    if(mode==='cat'&&selCats.size)qs=qs.filter(q=>selCats.has(q.cat));
-    if(mode==='year'&&selYears.size)qs=qs.filter(q=>selYears.has(q.year));
-    if(mode==='src'&&selSrcs.size)qs=qs.filter(q=>selSrcs.has(q.src));
+function toggleMlItem(m,id){
+  var body=document.getElementById('mlb-'+m+'-'+id);
+  var arrow=document.getElementById('mla-'+m+'-'+id);
+  if(!body)return;
+  var isOpen=body.style.display!=='none';
+  document.querySelectorAll('[id^="mlb-'+m+'-"]').forEach(function(b){b.style.display='none';});
+  document.querySelectorAll('[id^="mla-'+m+'-"]').forEach(function(a){a.style.transform='';});
+  if(isOpen)return;
+  var q=ALL_QS.find(function(qq){return qq.id===id;});
+  if(!q)return;
+  var L=['A','B','C','D'];
+  if(m==='wr'){
+    body.innerHTML=
+      '<div data-m="wr" data-id="'+id+'" onclick="toggleMlItem(this.dataset.m,this.dataset.id)" style="font-size:15px;line-height:1.75;color:var(--text);margin-bottom:14px;cursor:pointer">'+escHtml(q.stem)+'</div>'
+      +q.opts.filter(function(o){return o;}).map(function(o,i){
+        return '<div data-i="'+i+'" data-qid="'+id+'" data-ans="'+q.answer+'" onclick="mlPick(this);event.stopPropagation()" style="display:flex;gap:9px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);margin-bottom:7px;cursor:pointer">'
+          +'<span style="min-width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0">'+L[i]+'</span>'
+          +'<span style="font-size:14px;line-height:1.5;color:var(--text)">'+escHtml(o)+'</span>'
+        +'</div>';
+      }).join('');
+  } else {
+    var optsHtml=q.opts.filter(function(o){return o;}).map(function(o,i){
+      return '<div style="display:flex;gap:9px;padding:10px 12px;border:1.5px solid '+(i===q.answer?'var(--success)':'var(--border)')+';border-radius:9px;background:'+(i===q.answer?'var(--success-bg)':'var(--bg)')+';margin-bottom:7px">'
+        +'<span style="min-width:22px;height:22px;border-radius:50%;background:'+(i===q.answer?'var(--success)':'var(--bg3)')+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:'+(i===q.answer?'#fff':'var(--text2)')+';flex-shrink:0">'+L[i]+'</span>'
+        +'<span style="font-size:14px;line-height:1.5;color:'+(i===q.answer?'var(--success)':'var(--text)')+'">'+escHtml(o)+'</span>'
+      +'</div>';
+    }).join('');
+    var explBtn=q.expl_text
+      ?'<div id="bmexpl-'+id+'" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:14px;line-height:1.7;color:var(--text)">'+escHtml(q.expl_text)+'</div>'
+       +'<button data-eid="'+id+'" onclick="toggleBmExpl(this);event.stopPropagation()" style="margin-top:10px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--accent2);font-size:13px;font-weight:600;cursor:pointer">📖 해설 보기</button>'
+      :'';
+    body.innerHTML='<div style="font-size:15px;line-height:1.75;color:var(--text);margin-bottom:14px">'+escHtml(q.stem)+'</div>'+optsHtml+explBtn;
   }
-  // Sequential: src 알파벳순 → qnum 오름차순
-  if(order==='seq'){
-    qs=[...qs].sort((a,b)=>{
-      if(a.src!==b.src)return a.src.localeCompare(b.src);
-      return a.qnum-b.qnum;
-    });
+  body.style.display='block';
+  arrow.style.transform='rotate(180deg)';
+  setTimeout(function(){var el2=document.getElementById('ml-'+m+'-'+id);if(el2)el2.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+function toggleBmExpl(btn){
+  var d=document.getElementById('bmexpl-'+btn.dataset.eid);
+  if(!d)return;
+  var open=d.style.display==='block';
+  d.style.display=open?'none':'block';
+  btn.textContent=open?'📖 해설 보기':'📖 해설 닫기';
+}
+function mlPick(el){
+  var chosen=parseInt(el.dataset.i);
+  var correct=parseInt(el.dataset.ans);
+  var qId=el.dataset.qid;
+  var body=document.getElementById('mlb-wr-'+qId);
+  if(!body)return;
+  var ok=chosen===correct;
+  body.querySelectorAll('[data-i]').forEach(function(opt){
+    opt.onclick=null;opt.style.cursor='default';
+    var idx=parseInt(opt.dataset.i);
+    if(idx===correct){opt.style.borderColor='var(--success)';opt.style.background='var(--success-bg)';opt.querySelector('span').style.background='var(--success)';opt.querySelector('span').style.color='#fff';}
+    else if(idx===chosen&&!ok){opt.style.borderColor='var(--danger)';opt.style.background='rgba(239,68,68,.08)';}
+  });
+  if(ok){
+    var badge=document.createElement('div');
+    badge.textContent='✅ CORRECT!';
+    badge.style.cssText='text-align:center;font-size:16px;font-weight:800;color:var(--success);padding:14px;letter-spacing:.05em';
+    body.appendChild(badge);
+    store.done[qId]=true;store.wrongs.delete(qId);saveStore();updateStats();
+    setTimeout(function(){
+      var item=document.getElementById('ml-wr-'+qId);
+      if(item){item.style.transition='opacity .5s';item.style.opacity='0';
+        setTimeout(function(){renderModeList('wr');updateBtn();},500);}
+    },900);
+  } else {
+    store.done[qId]=false;store.wrongs.add(qId);saveStore();
+    var retry=document.createElement('div');
+    retry.textContent='❌ 오답 — 접었다 펴서 다시 도전하세요';
+    retry.style.cssText='text-align:center;color:var(--danger);font-size:13px;font-weight:600;padding:10px';
+    body.appendChild(retry);
   }
-  return qs;
+}
+function mlRemove(m,id){
+  if(m==='bm')store.bm.delete(id);else store.wrongs.delete(id);
+  saveStore();updateStats();renderModeList(m);updateBtn();
 }
 function updateBtn(){const qs=getFiltered(),n=sessCount===0?qs.length:Math.min(sessCount,qs.length);const btn=document.getElementById('btn-start');document.getElementById('sel-info').textContent=qs.length+' 문항 available · session: '+n;if(!qs.length){btn.disabled=true;btn.textContent='문항 없음';return;}btn.disabled=false;btn.textContent='Start '+n+' Questions →';}
 function confirmReset(){
