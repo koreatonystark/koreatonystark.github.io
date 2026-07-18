@@ -734,6 +734,46 @@ async function loadData(forceReload=false){
 function buildCatGrid(){const g=document.getElementById('cat-grid');g.innerHTML='';CAT_ORDER.forEach(cat=>{const cnt=ALL_QS.filter(q=>q.cat===cat).length;if(!cnt)return;const d=document.createElement('div');d.className='cat-btn';d.dataset.cat=cat;d.innerHTML='<span class="em">'+(CAT_EMOJI[cat]||'📚')+'</span><div class="nm">'+cat+'</div><div class="ct">'+cnt+' Qs</div><div class="ck">✓</div>';d.onclick=()=>toggleCat(cat,d);g.appendChild(d);});}
 function buildYearChips(){const years=[...new Set(ALL_QS.map(q=>q.year).filter(Boolean))].sort();const w=document.getElementById('year-chips');w.innerHTML='';years.forEach(y=>{const d=document.createElement('div');d.className='chip';d.dataset.year=y;d.textContent=y+' ('+ALL_QS.filter(q=>q.year===y).length+')';d.onclick=()=>toggleChip(selYears,y,d);w.appendChild(d);});}
 function buildSrcChips(){const srcs=[...new Set(ALL_QS.map(q=>q.src).filter(Boolean))].sort();const w=document.getElementById('src-chips');w.innerHTML='';srcs.forEach(s=>{const d=document.createElement('div');d.className='chip';d.dataset.src=s;d.textContent=s+' ('+ALL_QS.filter(q=>q.src===s).length+')';d.onclick=()=>toggleChip(selSrcs,s,d);w.appendChild(d);});}
+function toggleCat(cat,el){
+  selCats.has(cat)?selCats.delete(cat):selCats.add(cat);
+  el.classList.toggle('selected',selCats.has(cat));
+  updateBtn();
+}
+function toggleChip(set,val,el){
+  set.has(val)?set.delete(val):set.add(val);
+  el.classList.toggle('selected',set.has(val));
+  updateBtn();
+}
+function setOrder(o,el){
+  order=o;
+  document.querySelectorAll('.chip[data-order]').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  updateBtn();
+}
+function setCount(n,el){
+  sessCount=n;
+  document.querySelectorAll('.chip[data-count]').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  updateBtn();
+}
+function getFiltered(){
+  let qs;
+  if(mode==='bm')qs=ALL_QS.filter(q=>store.bm.has(q.id)&&!store.skip.has(q.id));
+  else if(mode==='wr')qs=ALL_QS.filter(q=>store.wrongs.has(q.id)&&!store.skip.has(q.id));
+  else{
+    qs=ALL_QS.filter(q=>!store.skip.has(q.id));
+    if(mode==='cat'&&selCats.size)qs=qs.filter(q=>selCats.has(q.cat));
+    if(mode==='year'&&selYears.size)qs=qs.filter(q=>selYears.has(q.year));
+    if(mode==='src'&&selSrcs.size)qs=qs.filter(q=>selSrcs.has(q.src));
+  }
+  if(order==='seq'){
+    qs=[...qs].sort((a,b)=>{
+      if(a.src!==b.src)return a.src.localeCompare(b.src);
+      return a.qnum-b.qnum;
+    });
+  }
+  return qs;
+}
 function setMode(m){
   mode=m;
   document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===m));
