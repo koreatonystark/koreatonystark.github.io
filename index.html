@@ -1071,19 +1071,17 @@ function openSkipScreen(){
     list.innerHTML=items.map(q=>
       '<div id="si-'+q.id+'" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;background:var(--bg2)">'+
         '<div style="display:flex;align-items:stretch">'+
-          '<div onclick="toggleSkipItem('+q.id+')" style="flex:1;padding:13px 14px;cursor:pointer;min-width:0">'+
+          '<div data-id="'+q.id+'" onclick="toggleSkipItem(this.dataset.id)" style="flex:1;padding:13px 14px;cursor:pointer;min-width:0">'+
             '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-              '<strong style="color:var(--warn);font-size:13px">('+q.src+') Q'+q.qnum+'</strong>'+
+              '<strong style="color:var(--warn);font-size:13px">'+(q.allSrcs?q.allSrcs.join(' · '):q.src)+' Q'+q.qnum+'</strong>'+
               '<span style="font-size:11px;color:var(--text3)">'+q.cat+'</span>'+
-              '<span id="sia-'+q.id+'" style="color:var(--text3);font-size:11px;margin-left:auto;transition:transform .2s;display:inline-block">▼</span>'+
+              '<span id="sia-'+q.id+'" style="color:var(--accent2);font-size:18px;margin-left:auto;transition:transform .25s;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--bg3);flex-shrink:0">▾</span>'+
             '</div>'+
             '<div style="font-size:13px;color:var(--text2);line-height:1.5;word-break:break-word">'+escHtml(q.stem.substring(0,80))+(q.stem.length>80?'…':'')+'</div>'+
           '</div>'+
-          '<button class="btn-unskip" onclick="unskip('+q.id+')" '+
-            'style="flex-shrink:0;border-radius:0;border:none;border-left:1px solid var(--border);'+
-            'padding:0 14px;margin:0;writing-mode:vertical-lr;font-size:12px;letter-spacing:.05em">해제</button>'+
+          '<button data-id="'+q.id+'" onclick="unskip(this.dataset.id)" style="flex-shrink:0;border-radius:0;border:none;border-left:1px solid var(--border);padding:0 14px;margin:0;writing-mode:vertical-lr;font-size:12px;letter-spacing:.05em;background:rgba(239,68,68,.1);color:var(--danger);cursor:pointer">해제</button>'+
         '</div>'+
-        '<div id="sib-'+q.id+'" style="display:none;border-top:1px solid var(--border);padding:14px"></div>'+
+        '<div id="sib-'+q.id+'" data-id="'+q.id+'" onclick="toggleSkipItem(this.dataset.id)" style="display:none;border-top:1px solid var(--border);padding:14px;cursor:pointer"></div>'+
       '</div>'
     ).join('');
   }
@@ -1094,9 +1092,9 @@ function toggleSkipItem(id){
   const arrow=document.getElementById('sia-'+id);
   if(!body)return;
   const isOpen=body.style.display!=='none';
-  if(isOpen){body.style.display='none';arrow.style.transform='';return;}
   document.querySelectorAll('[id^="sib-"]').forEach(b=>b.style.display='none');
   document.querySelectorAll('[id^="sia-"]').forEach(a=>a.style.transform='');
+  if(isOpen)return;
   const q=ALL_QS.find(q=>q.id===id);
   if(!q)return;
   const L=['A','B','C','D'];
