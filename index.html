@@ -242,12 +242,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);
       <div class="filter-label">Version / Source</div>
       <div class="chip-wrap" id="src-chips"></div>
     </div>
-    <div id="mode-bm" style="display:none">
-      <p style="color:var(--text2);font-size:14px;margin-top:16px;line-height:1.7">⭐ 퀴즈 중 ☆ 버튼을 누르면 북마크됩니다.</p>
-    </div>
-    <div id="mode-wr" style="display:none">
-      <p style="color:var(--text2);font-size:14px;margin-top:16px;line-height:1.7">❌ 틀린 문제가 여기에 누적됩니다.</p>
-    </div>
+    <div id="mode-bm" style="display:none"><div id="bm-list" style="margin-top:8px"></div></div>
+    <div id="mode-wr" style="display:none"><div id="wr-list" style="margin-top:8px"></div></div>
     <div id="mode-opts">
       <div class="filter-label">Order</div>
       <div class="chip-wrap">
@@ -665,6 +661,8 @@ async function loadData(forceReload=false){
   if(!forceReload && ALL_QS.length>0){
     if(restoreSession()){showScreen('quiz');showQ();}
     else{showScreen('home');updateBtn();}
+    // 이미 bm/wr 탭이 열려있으면 데이터 로드 후 재렌더
+    if(mode==='bm'||mode==='wr')renderModeList(mode);
     return;
   }
   document.getElementById('loading').style.display='flex';
@@ -723,7 +721,7 @@ async function loadData(forceReload=false){
     document.getElementById('loading').style.display='none';
     buildCatGrid();buildYearChips();buildSrcChips();
     document.getElementById('home-sub').textContent=ALL_QS.length.toLocaleString()+' 문항 · Google Sheets 연결됨';
-    updateStats();if(restoreSession()){
+    updateStats();if(mode==='bm'||mode==='wr')setTimeout(()=>renderModeList(mode),100);if(restoreSession()){
       showScreen('quiz');showQ();
     } else {
       showScreen('home');updateBtn();
