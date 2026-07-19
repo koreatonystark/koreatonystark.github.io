@@ -582,6 +582,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 </div>
 
 <script>
+// ── JSONP 헬퍼 (CORS 우회) ──────────────────────────────
+function jsonpRequest(url, onSuccess, onError){
+  const cbName = '_jsonp_' + Date.now();
+  const script = document.createElement('script');
+  const timeout = setTimeout(function(){
+    cleanup();
+    if(onError) onError(new Error('timeout'));
+  }, 15000);
+  function cleanup(){
+    clearTimeout(timeout);
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+  }
+  window[cbName] = function(data){
+    cleanup();
+    onSuccess(data);
+  };
+  script.src = url + '&callback=' + cbName;
+  script.onerror = function(){
+    cleanup();
+    if(onError) onError(new Error('script error'));
+  };
+  document.head.appendChild(script);
+}
+
 
 // ═══ 인증 (비밀번호 + WebAuthn 지문/얼굴인식) ═══
 const PW_KEY = 'npte_auth_v2';
