@@ -828,10 +828,15 @@ function toggleMlItem(m,id){
   if(!q)return;
   var L=['A','B','C','D'];
   if(m==='wr'){
+    // 보기 순서 랜덤 셔플 (정답 텍스트 기준으로 새 정답 인덱스 계산)
+    var origOpts=q.opts.filter(function(o){return o;});
+    var correctText=origOpts[q.answer]; // 정답 텍스트 저장
+    var shuffled=origOpts.slice().sort(function(){return Math.random()-.5;});
+    var newAnswer=shuffled.indexOf(correctText); // 셔플 후 정답 새 인덱스
     body.innerHTML=
       '<div data-m="wr" data-id="'+id+'" onclick="toggleMlItem(this.dataset.m,this.dataset.id)" style="font-size:15px;line-height:1.75;color:var(--text);margin-bottom:14px;cursor:pointer">'+escHtml(q.stem)+'</div>'
-      +q.opts.filter(function(o){return o;}).map(function(o,i){
-        return '<div data-i="'+i+'" data-qid="'+id+'" data-ans="'+q.answer+'" onclick="mlPick(this);event.stopPropagation()" style="display:flex;gap:9px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);margin-bottom:7px;cursor:pointer">'
+      +shuffled.map(function(o,i){
+        return '<div data-i="'+i+'" data-qid="'+id+'" data-ans="'+newAnswer+'" onclick="mlPick(this);event.stopPropagation()" style="display:flex;gap:9px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);margin-bottom:7px;cursor:pointer">'
           +'<span style="min-width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0">'+L[i]+'</span>'
           +'<span style="font-size:14px;line-height:1.5;color:var(--text)">'+escHtml(o)+'</span>'
         +'</div>';
@@ -843,10 +848,9 @@ function toggleMlItem(m,id){
         +'<span style="font-size:14px;line-height:1.5;color:'+(i===q.answer?'var(--success)':'var(--text)')+'">'+escHtml(o)+'</span>'
       +'</div>';
     }).join('');
-    var explBtn=q.expl_text
-      ?'<div id="bmexpl-'+id+'" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:14px;line-height:1.7;color:var(--text)">'+escHtml(q.expl_text)+'</div>'
-       +'<button data-eid="'+id+'" onclick="toggleBmExpl(this);event.stopPropagation()" style="margin-top:10px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--accent2);font-size:13px;font-weight:600;cursor:pointer">📖 해설 보기</button>'
-      :'';
+    var explContent=q.expl_text||'(해설 없음)';
+    var explBtn='<div id="bmexpl-'+id+'" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;font-size:14px;line-height:1.7;color:var(--text)">'+escHtml(explContent)+'</div>'
+      +'<button data-eid="'+id+'" onclick="toggleBmExpl(this);event.stopPropagation()" style="margin-top:10px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--accent2);font-size:13px;font-weight:600;cursor:pointer">📖 해설 보기</button>';
     body.innerHTML='<div style="font-size:15px;line-height:1.75;color:var(--text);margin-bottom:14px">'+escHtml(q.stem)+'</div>'+optsHtml+explBtn;
   }
   body.style.display='block';
