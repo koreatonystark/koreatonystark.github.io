@@ -198,6 +198,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 </head>
 <body>
 
+<div id="pw-screen" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px">
+  <div style="width:100%;max-width:320px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:36px;margin-bottom:12px">🔒</div>
+      <div style="font-size:22px;font-weight:800;color:#e8eaf6;margin-bottom:6px">NPTE-PT Study</div>
+      <div style="font-size:13px;color:#546e7a">비밀번호를 입력하세요</div>
+    </div>
+    <input id="pw-input" type="password" placeholder="Password"
+      style="width:100%;padding:14px 16px;background:#1e2035;border:1.5px solid #2a2d4a;
+      border-radius:12px;color:#e8eaf6;font-size:16px;text-align:center;
+      letter-spacing:.2em;margin-bottom:12px;box-sizing:border-box;outline:none"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()"
+      style="width:100%;padding:14px;background:#3949ab;border:none;border-radius:12px;
+      color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      입장
+    </button>
+    <div id="pw-error" style="text-align:center;color:#ef5350;font-size:13px;
+      min-height:20px;opacity:0;transition:opacity .2s"></div>
+  </div>
+</div>
+
+
 <div id="loading">
   <div class="loader"></div>
   <div class="load-title">NPTE-PT Study</div>
@@ -519,6 +543,81 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 </div>
 
 <script>
+
+// ═══ 인증 ═══
+const PW_KEY = 'npte_auth_v2';
+let _authToken = null;  // 인증된 토큰 (메모리에만 보관)
+
+function checkPw(){
+  const val = document.getElementById('pw-input').value.trim();
+  const errEl = document.getElementById('pw-error');
+  const btn = document.querySelector('#pw-screen button');
+  if(!val) return;
+  
+  btn.textContent = '확인 중...';
+  btn.disabled = true;
+  
+  // Apps Script에 비밀번호 전송해서 검증
+  fetch(SHEETS_URL + '&token=' + encodeURIComponent(val))
+    .then(r => r.json())
+    .then(data => {
+      if(data && data.error === 'unauthorized'){
+        errEl.textContent = '비밀번호가 틀렸습니다';
+        errEl.style.opacity = '1';
+        document.getElementById('pw-input').value = '';
+        document.getElementById('pw-input').focus();
+        setTimeout(()=>errEl.style.opacity='0', 2000);
+        btn.textContent = '입장';
+        btn.disabled = false;
+      } else if(Array.isArray(data) && data.length > 0){
+        // 인증 성공 + 데이터도 함께 받음
+        _authToken = val;
+        localStorage.setItem(PW_KEY, btoa(val + '_ok_v2'));
+        document.getElementById('pw-screen').style.display = 'none';
+        document.getElementById('pw-input').value = '';
+        btn.textContent = '입장';
+        btn.disabled = false;
+        // 인증 성공 → loadData로 데이터 로드
+        loadData(true);
+      } else {
+        errEl.textContent = '오류가 발생했습니다. 다시 시도하세요.';
+        errEl.style.opacity = '1';
+        setTimeout(()=>errEl.style.opacity='0', 2000);
+        btn.textContent = '입장';
+        btn.disabled = false;
+      }
+    })
+    .catch(() => {
+      errEl.textContent = '네트워크 오류. 다시 시도하세요.';
+      errEl.style.opacity = '1';
+      setTimeout(()=>errEl.style.opacity='0', 2000);
+      btn.textContent = '입장';
+      btn.disabled = false;
+    });
+}
+
+function initAuth(){
+  const saved = localStorage.getItem(PW_KEY);
+  if(saved){
+    // 저장된 인증 있으면 토큰 복원 후 앱 진입
+    try{
+      const decoded = atob(saved).replace('_ok_v2','');
+      _authToken = decoded;
+      document.getElementById('pw-screen').style.display = 'none';
+    } catch(e){
+      localStorage.removeItem(PW_KEY);
+      showPwScreen();
+    }
+  } else {
+    showPwScreen();
+  }
+}
+
+function showPwScreen(){
+  document.getElementById('pw-screen').style.display = 'flex';
+  setTimeout(()=>document.getElementById('pw-input').focus(), 100);
+}
+
 const SHEETS_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1021898635&single=true&output=csv";
 const VOCAB_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1703682275&single=true&output=csv";
 let VOCAB=[];
@@ -669,10 +768,25 @@ async function loadData(forceReload=false){
   document.getElementById('retry-btn').style.display='none';
   document.getElementById('load-msg').textContent='Google Sheets에서 문제를 불러오는 중…';
   try{
-    const resp=await fetch(SHEETS_URL+'&t='+Date.now());
+    const resp=await fetch(SHEETS_URL+'&t='+Date.now()+'&token='+encodeURIComponent(_authToken||''));
     if(!resp.ok)throw new Error('응답 오류 '+resp.status);
     const text=await resp.text();
-    const rows=parseCSV(text);if(!rows.length)throw new Error('데이터 없음');
+    let rows;
+    try{
+      const json=JSON.parse(text);
+      if(json&&json.error==='unauthorized'){
+        // 토큰 만료 - 재인증
+        localStorage.removeItem(PW_KEY);
+        _authToken=null;
+        document.getElementById('pw-screen').style.display='flex';
+        document.getElementById('loading').style.display='none';
+        return;
+      }
+      rows=Array.isArray(json)?json:[];
+    }catch(e){
+      rows=parseCSV(text); // fallback
+    }
+    if(!rows.length)throw new Error('데이터 없음');
     ALL_QS=[];
     rows.forEach((r,i)=>{
       const stem=(r.stem||r.question||'').trim();if(!stem)return;
@@ -1240,7 +1354,7 @@ function retrySame(){const qs=[...sessQs];if(order==='rand')qs.sort(()=>Math.ran
 function retryWrong(){const wqs=ALL_QS.filter(q=>sWrongIds.includes(q.id));if(!wqs.length)return;sessQs=wqs;qIdx=0;sCorrect=0;sWrong=0;sWrongIds=[];seenQIds=new Set();sessStartTime=Date.now();sessionAnswers={};answered=false;showScreen('quiz');showQ();}
 function goHome(){clearInterval(timerIv);updateStats();showScreen('home');updateBtn();}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-window.onload=()=>{loadStore();loadData();};
+window.onload=()=>{initAuth();loadStore();loadData();};
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     saveSession(); // 백그라운드 전환 시 저장
