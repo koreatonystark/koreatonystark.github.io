@@ -917,7 +917,9 @@ async function loadData(forceReload=false){
   document.getElementById('load-msg').textContent='Google Sheets에서 문제를 불러오는 중…';
   try{
     // JSONP 로드 (Promise로 래핑)
-    const json = await new Promise((resolve, reject) => jsonpRequest(SHEETS_URL+'&t='+Date.now()+'&token='+encodeURIComponent(_authToken||''), resolve, reject));
+    let raw = await new Promise((resolve, reject) => jsonpRequest(SHEETS_URL+'&t='+Date.now()+'&token='+encodeURIComponent(_authToken||''), resolve, reject));
+    // Apps Script가 JSON.stringify(rows)를 반환하므로 문자열일 수 있음
+    let json = (typeof raw === 'string') ? JSON.parse(raw) : raw;
     if(json&&json.error==='unauthorized'){
       localStorage.removeItem(PW_KEY);
       _authToken=null;
