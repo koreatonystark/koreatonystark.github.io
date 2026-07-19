@@ -200,9 +200,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 
 <div id="pw-screen" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
   display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px">
-  <div style="width:100%;max-width:320px">
+
+  <!-- 비밀번호 입력 -->
+  <div id="pw-main" style="width:100%;max-width:320px">
     <div style="text-align:center;margin-bottom:32px">
-      <div style="font-size:36px;margin-bottom:12px">🔒</div>
+      <div style="font-size:40px;margin-bottom:12px">🔒</div>
       <div style="font-size:22px;font-weight:800;color:#e8eaf6;margin-bottom:6px">NPTE-PT Study</div>
       <div style="font-size:13px;color:#546e7a">비밀번호를 입력하세요</div>
     </div>
@@ -211,15 +213,52 @@ html,body{height:100%;background:var(--bg);color:var(--text);
       border-radius:12px;color:#e8eaf6;font-size:16px;text-align:center;
       letter-spacing:.2em;margin-bottom:12px;box-sizing:border-box;outline:none"
       onkeydown="if(event.key==='Enter')checkPw()">
-    <button onclick="checkPw()"
+    <button id="pw-btn" onclick="checkPw()"
       style="width:100%;padding:14px;background:#3949ab;border:none;border-radius:12px;
       color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
       입장
     </button>
     <div id="pw-error" style="text-align:center;color:#ef5350;font-size:13px;
       min-height:20px;opacity:0;transition:opacity .2s"></div>
+
+    <!-- 지문 등록 제안 패널 -->
+    <div id="pw-biometric-offer" style="display:none;flex-direction:column;align-items:center;
+      margin-top:20px;padding:20px;background:#1e2035;border:1px solid #2a2d4a;border-radius:14px">
+      <div style="font-size:32px;margin-bottom:10px">👆</div>
+      <div style="font-size:15px;font-weight:700;color:#e8eaf6;margin-bottom:6px">지문/얼굴인식 등록</div>
+      <div style="font-size:12px;color:#546e7a;text-align:center;margin-bottom:16px;line-height:1.6">
+        다음부터 비밀번호 없이<br>생체인식으로 바로 입장할 수 있습니다
+      </div>
+      <button onclick="registerBiometric()"
+        style="width:100%;padding:12px;background:#1b5e20;border:none;border-radius:10px;
+        color:#a5d6a7;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
+        👆 지문/얼굴인식 등록
+      </button>
+      <button onclick="skipBiometric()"
+        style="width:100%;padding:12px;background:transparent;border:1px solid #2a2d4a;
+        border-radius:10px;color:#546e7a;font-size:13px;cursor:pointer">
+        건너뛰기
+      </button>
+    </div>
+  </div>
+
+  <!-- 지문 인증 대기 화면 -->
+  <div id="pw-bio-waiting" style="display:none;flex-direction:column;align-items:center;
+    width:100%;max-width:320px">
+    <div style="font-size:56px;margin-bottom:20px;animation:pulse 1.5s infinite">👆</div>
+    <div style="font-size:18px;font-weight:700;color:#e8eaf6;margin-bottom:8px">지문/얼굴 인식 중</div>
+    <div style="font-size:13px;color:#546e7a;margin-bottom:28px">기기의 생체인식을 사용하세요</div>
+    <button onclick="resetBiometric()"
+      style="padding:10px 24px;background:transparent;border:1px solid #2a2d4a;
+      border-radius:20px;color:#546e7a;font-size:13px;cursor:pointer">
+      비밀번호로 입장
+    </button>
   </div>
 </div>
+
+<style>
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.7}}
+</style>
 
 
 <div id="loading">
@@ -544,78 +583,166 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 
 <script>
 
-// ═══ 인증 ═══
+// ═══ 인증 (비밀번호 + WebAuthn 지문/얼굴인식) ═══
 const PW_KEY = 'npte_auth_v2';
-let _authToken = null;  // 인증된 토큰 (메모리에만 보관)
+const WA_KEY = 'npte_wa_cred';  // WebAuthn credential id 저장
+let _authToken = null;
 
+// ── 비밀번호 검증 ──────────────────────────────────────
 function checkPw(){
   const val = document.getElementById('pw-input').value.trim();
   const errEl = document.getElementById('pw-error');
-  const btn = document.querySelector('#pw-screen button');
+  const btn = document.getElementById('pw-btn');
   if(!val) return;
-  
-  btn.textContent = '확인 중...';
-  btn.disabled = true;
-  
-  // Apps Script에 비밀번호 전송해서 검증
+  btn.textContent = '확인 중...'; btn.disabled = true;
+
   fetch(SHEETS_URL + '&token=' + encodeURIComponent(val))
     .then(r => r.json())
     .then(data => {
       if(data && data.error === 'unauthorized'){
-        errEl.textContent = '비밀번호가 틀렸습니다';
-        errEl.style.opacity = '1';
-        document.getElementById('pw-input').value = '';
-        document.getElementById('pw-input').focus();
-        setTimeout(()=>errEl.style.opacity='0', 2000);
-        btn.textContent = '입장';
-        btn.disabled = false;
+        showPwError('비밀번호가 틀렸습니다');
+        btn.textContent = '입장'; btn.disabled = false;
       } else if(Array.isArray(data) && data.length > 0){
-        // 인증 성공 + 데이터도 함께 받음
         _authToken = val;
         localStorage.setItem(PW_KEY, btoa(val + '_ok_v2'));
-        document.getElementById('pw-screen').style.display = 'none';
         document.getElementById('pw-input').value = '';
-        btn.textContent = '입장';
-        btn.disabled = false;
-        // 인증 성공 → loadData로 데이터 로드
-        loadData(true);
+        btn.textContent = '입장'; btn.disabled = false;
+        // 지문 등록 제안
+        if(window.PublicKeyCredential && !localStorage.getItem(WA_KEY)){
+          offerBiometric();
+        } else {
+          authSuccess();
+        }
       } else {
-        errEl.textContent = '오류가 발생했습니다. 다시 시도하세요.';
-        errEl.style.opacity = '1';
-        setTimeout(()=>errEl.style.opacity='0', 2000);
-        btn.textContent = '입장';
-        btn.disabled = false;
+        showPwError('오류가 발생했습니다. 다시 시도하세요.');
+        btn.textContent = '입장'; btn.disabled = false;
       }
     })
     .catch(() => {
-      errEl.textContent = '네트워크 오류. 다시 시도하세요.';
-      errEl.style.opacity = '1';
-      setTimeout(()=>errEl.style.opacity='0', 2000);
-      btn.textContent = '입장';
-      btn.disabled = false;
+      showPwError('네트워크 오류. 다시 시도하세요.');
+      btn.textContent = '입장'; btn.disabled = false;
     });
 }
 
-function initAuth(){
-  const saved = localStorage.getItem(PW_KEY);
-  if(saved){
-    // 저장된 인증 있으면 토큰 복원 후 앱 진입
-    try{
-      const decoded = atob(saved).replace('_ok_v2','');
-      _authToken = decoded;
-      document.getElementById('pw-screen').style.display = 'none';
-    } catch(e){
-      localStorage.removeItem(PW_KEY);
-      showPwScreen();
-    }
-  } else {
-    showPwScreen();
+function showPwError(msg){
+  const el = document.getElementById('pw-error');
+  el.textContent = msg; el.style.opacity = '1';
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-input').focus();
+  setTimeout(()=>el.style.opacity='0', 2500);
+}
+
+// ── WebAuthn 지문 등록 제안 ────────────────────────────
+function offerBiometric(){
+  const panel = document.getElementById('pw-biometric-offer');
+  if(panel) panel.style.display = 'flex';
+  else authSuccess();
+}
+
+async function registerBiometric(){
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({publicKey:{
+      challenge,
+      rp:{name:'NPTE-PT Study'},
+      user:{id: new Uint8Array(16), name:'user', displayName:'사용자'},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+      timeout:60000
+    }});
+    // credential id 저장
+    const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem(WA_KEY, credId);
+    hideBiometricOffer();
+    authSuccess();
+  } catch(e){
+    hideBiometricOffer();
+    authSuccess(); // 등록 취소해도 앱은 진입
   }
+}
+
+function skipBiometric(){
+  hideBiometricOffer();
+  authSuccess();
+}
+
+function hideBiometricOffer(){
+  const panel = document.getElementById('pw-biometric-offer');
+  if(panel) panel.style.display = 'none';
+}
+
+// ── WebAuthn 지문 인증 ─────────────────────────────────
+async function authWithBiometric(){
+  const credIdStr = localStorage.getItem(WA_KEY);
+  if(!credIdStr) return false;
+  try{
+    const credIdBytes = Uint8Array.from(atob(credIdStr), c=>c.charCodeAt(0));
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    await navigator.credentials.get({publicKey:{
+      challenge,
+      allowCredentials:[{type:'public-key', id:credIdBytes}],
+      userVerification:'required',
+      timeout:60000
+    }});
+    return true;
+  } catch(e){ return false; }
+}
+
+// ── 인증 성공 공통 처리 ────────────────────────────────
+function authSuccess(){
+  document.getElementById('pw-screen').style.display = 'none';
+  loadData(true);
+}
+
+// ── 초기 인증 흐름 ────────────────────────────────────
+async function initAuth(){
+  const saved = localStorage.getItem(PW_KEY);
+  const hasWA = localStorage.getItem(WA_KEY);
+
+  if(saved){
+    try{ _authToken = atob(saved).replace('_ok_v2',''); } catch(e){ localStorage.removeItem(PW_KEY); }
+  }
+
+  if(_authToken && hasWA && window.PublicKeyCredential){
+    // 지문 인증 시도
+    showBioScreen();
+    const ok = await authWithBiometric();
+    hideBioScreen();
+    if(ok){ authSuccess(); return; }
+    // 지문 실패 → 비밀번호 화면
+  }
+
+  if(_authToken && !hasWA){
+    // 지문 미등록 → 바로 진입
+    authSuccess(); return;
+  }
+
+  showPwScreen();
 }
 
 function showPwScreen(){
   document.getElementById('pw-screen').style.display = 'flex';
-  setTimeout(()=>document.getElementById('pw-input').focus(), 100);
+  document.getElementById('pw-main').style.display = 'block';
+  hideBiometricOffer();
+  setTimeout(()=>document.getElementById('pw-input').focus(), 150);
+}
+
+function showBioScreen(){
+  document.getElementById('pw-screen').style.display = 'flex';
+  document.getElementById('pw-main').style.display = 'none';
+  const bs = document.getElementById('pw-bio-waiting');
+  if(bs) bs.style.display = 'flex';
+}
+
+function hideBioScreen(){
+  const bs = document.getElementById('pw-bio-waiting');
+  if(bs) bs.style.display = 'none';
+}
+
+function resetBiometric(){
+  localStorage.removeItem(WA_KEY);
+  hideBioScreen();
+  showPwScreen();
 }
 
 const SHEETS_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1021898635&single=true&output=csv";
