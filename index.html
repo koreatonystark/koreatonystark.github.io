@@ -582,67 +582,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 </div>
 
 <script>
-// ── JSONP 헬퍼 (CORS 우회) ──────────────────────────────
-function jsonpRequest(url, onSuccess, onError){
-  const cbName = '_jsonp_' + Date.now();
-  const script = document.createElement('script');
-  const timeout = setTimeout(function(){
-    cleanup();
-    if(onError) onError(new Error('timeout'));
-  }, 45000);
-  function cleanup(){
-    clearTimeout(timeout);
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
-  }
-  window[cbName] = function(data){
-    cleanup();
-    onSuccess(data);
-  };
-  script.src = url + '&callback=' + cbName;
-  script.onerror = function(){
-    cleanup();
-    if(onError) onError(new Error('script error'));
-  };
-  document.head.appendChild(script);
-}
-
-
-// ═══ 인증 (비밀번호 + WebAuthn 지문/얼굴인식) ═══
+// ═══ 인증 (SHA-256 해시 비밀번호) ═══
 const PW_KEY = 'npte_auth_v2';
-const WA_KEY = 'npte_wa_cred';  // WebAuthn credential id 저장
+const WA_KEY = 'npte_wa_cred';
+// SHA-256('Oh9571@@') — 소스에 원본 비밀번호 없음
+const PW_HASH = 'b72e2069566d10915bb81227921992f0f434fa3ce4c710080ab972cef60d8fea';
 let _authToken = null;
 
-// ── 비밀번호 검증 ──────────────────────────────────────
-function checkPw(){
+async function hashPw(pw){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkPw(){
   const val = document.getElementById('pw-input').value.trim();
-  const errEl = document.getElementById('pw-error');
   const btn = document.getElementById('pw-btn');
   if(!val) return;
   btn.textContent = '확인 중...'; btn.disabled = true;
-
-  jsonpRequest(SHEETS_URL + '&token=' + encodeURIComponent(val), function(data){
-    if(data && data.error === 'unauthorized'){
-      showPwError('비밀번호가 틀렸습니다');
-      btn.textContent = '입장'; btn.disabled = false;
-    } else if(Array.isArray(data) && data.length > 0){
-      _authToken = val;
-      localStorage.setItem(PW_KEY, btoa(val + '_ok_v2'));
-      document.getElementById('pw-input').value = '';
-      btn.textContent = '입장'; btn.disabled = false;
-      if(window.PublicKeyCredential && !localStorage.getItem(WA_KEY)){
-        offerBiometric();
-      } else {
-        authSuccess();
-      }
-    } else {
-      showPwError('오류가 발생했습니다. 다시 시도하세요.');
-      btn.textContent = '입장'; btn.disabled = false;
-    }
-  }, function(){
-    showPwError('네트워크 오류. 다시 시도하세요.');
+  const h = await hashPw(val);
+  if(h === PW_HASH){
+    _authToken = val;
+    localStorage.setItem(PW_KEY, btoa(val + '_ok_v2'));
+    document.getElementById('pw-input').value = '';
     btn.textContent = '입장'; btn.disabled = false;
-  });
+    if(window.PublicKeyCredential && !localStorage.getItem(WA_KEY)){
+      offerBiometric();
+    } else {
+      authSuccess();
+    }
+  } else {
+    showPwError('비밀번호가 틀렸습니다');
+    btn.textContent = '입장'; btn.disabled = false;
+  }
 }
 
 function showPwError(msg){
@@ -653,7 +624,6 @@ function showPwError(msg){
   setTimeout(()=>el.style.opacity='0', 2500);
 }
 
-// ── WebAuthn 지문 등록 제안 ────────────────────────────
 function offerBiometric(){
   const panel = document.getElementById('pw-biometric-offer');
   if(panel) panel.style.display = 'flex';
@@ -671,28 +641,22 @@ async function registerBiometric(){
       authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
       timeout:60000
     }});
-    // credential id 저장
     const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
     localStorage.setItem(WA_KEY, credId);
     hideBiometricOffer();
     authSuccess();
   } catch(e){
     hideBiometricOffer();
-    authSuccess(); // 등록 취소해도 앱은 진입
+    authSuccess();
   }
 }
 
-function skipBiometric(){
-  hideBiometricOffer();
-  authSuccess();
-}
-
+function skipBiometric(){ hideBiometricOffer(); authSuccess(); }
 function hideBiometricOffer(){
-  const panel = document.getElementById('pw-biometric-offer');
-  if(panel) panel.style.display = 'none';
+  const p = document.getElementById('pw-biometric-offer');
+  if(p) p.style.display = 'none';
 }
 
-// ── WebAuthn 지문 인증 ─────────────────────────────────
 async function authWithBiometric(){
   const credIdStr = localStorage.getItem(WA_KEY);
   if(!credIdStr) return false;
@@ -709,35 +673,24 @@ async function authWithBiometric(){
   } catch(e){ return false; }
 }
 
-// ── 인증 성공 공통 처리 ────────────────────────────────
 function authSuccess(){
   document.getElementById('pw-screen').style.display = 'none';
   loadData(true);
 }
 
-// ── 초기 인증 흐름 ────────────────────────────────────
 async function initAuth(){
   const saved = localStorage.getItem(PW_KEY);
   const hasWA = localStorage.getItem(WA_KEY);
-
   if(saved){
     try{ _authToken = atob(saved).replace('_ok_v2',''); } catch(e){ localStorage.removeItem(PW_KEY); }
   }
-
   if(_authToken && hasWA && window.PublicKeyCredential){
-    // 지문 인증 시도
     showBioScreen();
     const ok = await authWithBiometric();
     hideBioScreen();
     if(ok){ authSuccess(); return; }
-    // 지문 실패 → 비밀번호 화면
   }
-
-  if(_authToken && !hasWA){
-    // 지문 미등록 → 바로 진입
-    authSuccess(); return;
-  }
-
+  if(_authToken && !hasWA){ authSuccess(); return; }
   showPwScreen();
 }
 
@@ -747,26 +700,23 @@ function showPwScreen(){
   hideBiometricOffer();
   setTimeout(()=>document.getElementById('pw-input').focus(), 150);
 }
-
 function showBioScreen(){
   document.getElementById('pw-screen').style.display = 'flex';
   document.getElementById('pw-main').style.display = 'none';
   const bs = document.getElementById('pw-bio-waiting');
   if(bs) bs.style.display = 'flex';
 }
-
 function hideBioScreen(){
   const bs = document.getElementById('pw-bio-waiting');
   if(bs) bs.style.display = 'none';
 }
-
 function resetBiometric(){
   localStorage.removeItem(WA_KEY);
   hideBioScreen();
   showPwScreen();
 }
 
-const SHEETS_URL="https://script.google.com/macros/s/AKfycbwfmiCq7HFg4qgAmyA5TLnN_kt_beTu9E3CpHPQV8hHzv6ThCJpbbJ5wDLl-trzp-Dp0w/exec?v=1";
+const SHEETS_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1021898635&single=true&output=csv";
 const VOCAB_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1703682275&single=true&output=csv";
 let VOCAB=[];
 const CAT_ORDER=["Musculoskeletal", "Neuromuscular", "Cardiopulmonary", "Other Systems", "Equipment & Assistive Technology", "Modalities", "Safety", "Professional Issues", "Research", "Multisystem / Differential Diagnosis"];
@@ -916,18 +866,10 @@ async function loadData(forceReload=false){
   document.getElementById('retry-btn').style.display='none';
   document.getElementById('load-msg').textContent='Google Sheets에서 문제를 불러오는 중…';
   try{
-    // JSONP 로드 (Promise로 래핑)
-    let raw = await new Promise((resolve, reject) => jsonpRequest(SHEETS_URL+'&t='+Date.now()+'&token='+encodeURIComponent(_authToken||''), resolve, reject));
-    // Apps Script가 JSON.stringify(rows)를 반환하므로 문자열일 수 있음
-    let json = (typeof raw === 'string') ? JSON.parse(raw) : raw;
-    if(json&&json.error==='unauthorized'){
-      localStorage.removeItem(PW_KEY);
-      _authToken=null;
-      document.getElementById('pw-screen').style.display='flex';
-      document.getElementById('loading').style.display='none';
-      return;
-    }
-    const rows=Array.isArray(json)?json:[];
+    const resp=await fetch(SHEETS_URL+'&t='+Date.now());
+    if(!resp.ok)throw new Error('응답 오류 '+resp.status);
+    const text=await resp.text();
+    const rows=parseCSV(text);
     if(!rows.length)throw new Error('데이터 없음');
     ALL_QS=[];
     rows.forEach((r,i)=>{
