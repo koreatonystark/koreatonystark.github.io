@@ -1496,7 +1496,7 @@ function retrySame(){const qs=[...sessQs];if(order==='rand')qs.sort(()=>Math.ran
 function retryWrong(){const wqs=ALL_QS.filter(q=>sWrongIds.includes(q.id));if(!wqs.length)return;sessQs=wqs;qIdx=0;sCorrect=0;sWrong=0;sWrongIds=[];seenQIds=new Set();sessStartTime=Date.now();sessionAnswers={};answered=false;showScreen('quiz');showQ();}
 function goHome(){clearInterval(timerIv);updateStats();showScreen('home');updateBtn();}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-window.onload=()=>{initAuth();loadStore();loadData();};
+window.onload=()=>{loadStore();initAuth();};
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     saveSession(); // 백그라운드 전환 시 저장
