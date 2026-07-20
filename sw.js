@@ -1,5 +1,6 @@
-const CACHE = 'npte-v3';  // 버전 올려서 기존 캐시 강제 삭제
-const BASE = '/NPTE-Study';
+const CACHE = 'npte-v4';
+// sw.js 위치 기준으로 BASE 자동 감지 (서브경로/루트 모두 대응)
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS = [
   BASE + '/',
   BASE + '/index.html',
@@ -10,7 +11,10 @@ const ASSETS = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    // 캐시 실패해도 앱 블로킹 없도록 catch 처리
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS).catch(() => {}))
+      .then(() => self.skipWaiting())
   );
 });
 
