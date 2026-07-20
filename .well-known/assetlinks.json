@@ -1,8 +1,24 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.koreatonystark.twa5",
-        "sha256_cert_fingerprints": ["2F:6A:65:27:4E:2C:67:4C:C3:7E:F3:40:42:53:04:A6:3F:6C:E6:A1:34:9D:8D:E5:64:6E:60:52:D5:AA:38:31"]
-      }
-    }]
+네, 정확합니다. 이렇게 합치면 됩니다:
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.koreatonystark.twa",
+      "sha256_cert_fingerprints": ["34:38:30:38:B0:5C:1C:EB:A6:54:1E:3D:EC:32:AA:D2:B8:09:27:45:A2:8F:F6:D0:F9:49:B6:5E:33:B5:A9:F6"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.koreatonystark.twa5",
+      "sha256_cert_fingerprints": ["2F:6A:65:27:4E:2C:67:4C:C3:7E:F3:40:42:53:04:A6:3F:6C:E6:A1:34:9D:8D:E5:64:6E:60:52:D5:AA:38:31"]
+    }
+  }
+]
+```
+
+이걸 `koreatonystark.github.io` root repo의 `.well-known/assetlinks.json`에 올리면 두 앱 모두 작동합니다. 앱이 더 생기면 배열에 항목만 추가하면 돼요.
