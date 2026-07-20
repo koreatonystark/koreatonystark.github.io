@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "io.github.koreatonystark.twa4",
-        "sha256_cert_fingerprints": ["31:A5:29:40:8C:EB:2D:34:C1:AF:CA:95:2A:16:39:80:4C:19:77:C9:F9:96:21:07:43:9D:13:B6:C2:8C:A8:9F"]
+        "package_name": "io.github.koreatonystark.twa5",
+        "sha256_cert_fingerprints": ["2F:6A:65:27:4E:2C:67:4C:C3:7E:F3:40:42:53:04:A6:3F:6C:E6:A1:34:9D:8D:E5:64:6E:60:52:D5:AA:38:31"]
       }
     }]
