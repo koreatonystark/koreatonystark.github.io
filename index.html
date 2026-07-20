@@ -663,7 +663,7 @@ async function loadData(forceReload=false){
     if(mode==='bm'||mode==='wr')renderModeList(mode);
     return;
   }
-  document.getElementById('loading').style.display='flex';
+  const ldEl=document.getElementById('loading');if(ldEl)ldEl.style.display='flex';
   document.getElementById('retry-btn').style.display='none';
   document.getElementById('load-msg').textContent='Google Sheets에서 문제를 불러오는 중…';
   try{
@@ -717,7 +717,7 @@ async function loadData(forceReload=false){
       // 긴 숙어 먼저 매칭되도록 정렬
       VOCAB.sort((a,b)=>b.word.length-a.word.length);
     }).catch(()=>{});
-    document.getElementById('loading').style.display='none';
+    const ldEl2=document.getElementById('loading');if(ldEl2)ldEl2.style.display='none';
     buildCatGrid();buildYearChips();buildSrcChips();
     document.getElementById('home-sub').textContent=ALL_QS.length.toLocaleString()+' 문항 · Google Sheets 연결됨';
     updateStats();if(mode==='bm'||mode==='wr')setTimeout(()=>renderModeList(mode),100);if(restoreSession()){
