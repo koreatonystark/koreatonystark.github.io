@@ -1,14 +1,14 @@
 {
   "name": "NPTE-PT Study",
   "short_name": "NPTE",
-  "start_url": "/NPTE-Study/",
-  "scope": "/NPTE-Study/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f1117",
   "theme_color": "#1a237e",
   "orientation": "portrait",
   "icons": [
-    { "src": "/NPTE-Study/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/NPTE-Study/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
