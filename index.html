@@ -730,12 +730,12 @@ function resetBiometric(){
 const SHEETS_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1021898635&single=true&output=csv";
 const VOCAB_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSxL_twK0WV9AXDTX6__YYFxpcfRl_kNaC6ripaS-BK3gpklyk51Qoit4azoThAT4ww3rvx880jprgU/pub?gid=1703682275&single=true&output=csv";
 let VOCAB=[];
-const CAT_ORDER=["Musculoskeletal", "Neuromuscular", "Cardiopulmonary", "Other Systems", "Equipment & Assistive Technology", "Modalities", "Safety", "Professional Issues", "Research", "Multisystem / Differential Diagnosis"];
-const CAT_EMOJI={"Musculoskeletal": "🦴", "Neuromuscular": "🧠", "Cardiopulmonary": "❤️", "Other Systems": "🩺", "Equipment & Assistive Technology": "🦽", "Modalities": "⚡", "Safety": "🚨", "Professional Issues": "📋", "Research": "🔬", "Multisystem / Differential Diagnosis": "🔍"};
+const CAT_ORDER=["Musculoskeletal","Neuromuscular","Cardiovascular & Pulmonary","Integumentary","Metabolic & Endocrine","Gastrointestinal","Genitourinary","Lymphatic","System Interactions / Differential Diagnosis","Equipment & Assistive Technology","Modalities","Safety","Professional Issues","Research"];
+const CAT_EMOJI={"Musculoskeletal":"🦴","Neuromuscular":"🧠","Cardiovascular & Pulmonary":"❤️","Integumentary":"🩹","Metabolic & Endocrine":"🔬","Gastrointestinal":"🫃","Genitourinary":"🫀","Lymphatic":"💧","System Interactions / Differential Diagnosis":"🔍","Equipment & Assistive Technology":"🦽","Modalities":"⚡","Safety":"🚨","Professional Issues":"📋","Research":"📊"};
 const TIMER_SEC=80,STORE_KEY='npte_v5';
 let ALL_QS=[],mode='cat',order='seq',sessCount=50;
 let selCats=new Set(),selYears=new Set(),selSrcs=new Set(),selSubs=new Set();
-const CAT_SUBS={};
+const CAT_SUBS={};  // 데이터 로드 후 동적으로 채워짐
 let sessQs=[],qIdx=0,answered=false,sCorrect=0,sWrong=0,sWrongIds=[];
 let translateOn=false,timerIv=null,timerLeft=0,trStem='',trOpts=[];
 let sessStartTime=0,seenQIds=new Set(),sessionAnswers={};
@@ -916,6 +916,13 @@ async function loadData(forceReload=false){
       }
     });
     if(!ALL_QS.length)throw new Error('유효한 문항 없음');
+    // CAT_SUBS 동적 빌드: Sheets의 cat(A열), sub(B열) 값으로 구성
+    Object.keys(CAT_SUBS).forEach(k=>delete CAT_SUBS[k]);
+    ALL_QS.forEach(function(q){
+      if(!q.cat)return;
+      if(!CAT_SUBS[q.cat])CAT_SUBS[q.cat]=[];
+      if(q.sub&&!CAT_SUBS[q.cat].includes(q.sub))CAT_SUBS[q.cat].push(q.sub);
+    });
     // 단어장 로드 (백그라운드)
     fetch(VOCAB_URL+'&t='+Date.now()).then(r=>r.text()).then(t=>{
       const rows=parseCSV(t);
@@ -971,9 +978,9 @@ function buildCatGrid(){
     var html='<div style="display:flex;align-items:center;gap:6px"><span class="em">'+(CAT_EMOJI[cat]||'📚')+'</span><div class="nm">'+cat+'</div><div class="ct">'+cnt+' Qs</div><div class="ck">✓</div></div>';
     if(subs.length){
       html+='<div class="sub-chips" id="'+catId+'" style="display:'+(selCats.has(cat)?'flex':'none')+'">';
-      html+='<span class="sub-chip sub-all" data-sub="" data-cid="'+catId+'">All</span>';
+      html+='<span class="sub-chip sub-all" data-sub="" data-cid="'+catId+'" data-cat="'+cat+'">All</span>';
       subs.forEach(function(s){
-        html+='<span class="sub-chip'+(selSubs.has(s)&&selCats.has(cat)?' sub-on':'')+'" data-sub="'+s+'" data-cid="'+catId+'">'+s+'</span>';
+        html+='<span class="sub-chip'+(selSubs.has(s)&&selCats.has(cat)?' sub-on':'')+'" data-sub="'+s+'" data-cid="'+catId+'" data-cat="'+cat+'">'+s+'</span>';
       });
       html+='</div>';
     }
@@ -986,18 +993,23 @@ function buildCatGrid(){
   });
 }
 function toggleSub(el){
-  var sub=el.dataset.sub,cid=el.dataset.cid;
+  var sub=el.dataset.sub,cid=el.dataset.cid,cat=el.dataset.cat||'';
   var container=document.getElementById(cid);
   if(!container)return;
+  // 이 카테고리의 subs 목록
+  var catSubs=CAT_SUBS[cat]||[];
   if(sub===''){
-    selSubs.clear();
+    // All 클릭: 이 카테고리의 selSubs 항목 모두 제거
+    catSubs.forEach(function(s){selSubs.delete(s);});
     container.querySelectorAll('.sub-chip').forEach(function(c){c.classList.remove('sub-on','sub-all');});
     el.classList.add('sub-all');
   } else {
     selSubs.has(sub)?selSubs.delete(sub):selSubs.add(sub);
     el.classList.toggle('sub-on',selSubs.has(sub));
+    // 이 카테고리의 선택된 sub 수
+    var activeSubs=catSubs.filter(function(s){return selSubs.has(s);});
     var allChip=container.querySelector('[data-sub=""]');
-    if(allChip)allChip.classList.toggle('sub-all',selSubs.size===0);
+    if(allChip)allChip.classList.toggle('sub-all',activeSubs.length===0);
   }
   updateBtn();
 }
@@ -1005,8 +1017,32 @@ function toggleSub(el){
 function buildYearChips(){const years=[...new Set(ALL_QS.map(q=>q.year).filter(Boolean))].sort();const w=document.getElementById('year-chips');w.innerHTML='';years.forEach(y=>{const d=document.createElement('div');d.className='chip';d.dataset.year=y;d.textContent=y+' ('+ALL_QS.filter(q=>q.year===y).length+')';d.onclick=()=>toggleChip(selYears,y,d);w.appendChild(d);});}
 function buildSrcChips(){const srcs=[...new Set(ALL_QS.map(q=>q.src).filter(Boolean))].sort();const w=document.getElementById('src-chips');w.innerHTML='';srcs.forEach(s=>{const d=document.createElement('div');d.className='chip';d.dataset.src=s;d.textContent=s+' ('+ALL_QS.filter(q=>q.src===s).length+')';d.onclick=()=>toggleChip(selSrcs,s,d);w.appendChild(d);});}
 function toggleCat(cat,el){
-  selCats.has(cat)?selCats.delete(cat):selCats.add(cat);
+  var wasSelected=selCats.has(cat);
+  if(wasSelected){
+    selCats.delete(cat);
+    // 이 카테고리의 sub 선택도 해제
+    var catId='sc_'+cat.replace(/[^a-z0-9]/gi,'_');
+    var chips=document.getElementById(catId);
+    if(chips)chips.style.display='none';
+    // 해당 카테고리의 selSubs 항목 제거
+    var subs=CAT_SUBS[cat]||[];
+    subs.forEach(function(s){selSubs.delete(s);});
+  } else {
+    selCats.add(cat);
+    // All Categories 버튼 해제
+    var allBtn=document.querySelector('.cat-all-btn');
+    if(allBtn)allBtn.classList.remove('selected');
+    // sub-chips 펼치기
+    var catId='sc_'+cat.replace(/[^a-z0-9]/gi,'_');
+    var chips=document.getElementById(catId);
+    if(chips)chips.style.display='flex';
+  }
   el.classList.toggle('selected',selCats.has(cat));
+  // selCats가 비면 All 다시 선택
+  if(selCats.size===0){
+    var allBtn=document.querySelector('.cat-all-btn');
+    if(allBtn)allBtn.classList.add('selected');
+  }
   updateBtn();
 }
 function toggleChip(set,val,el){
@@ -1033,6 +1069,8 @@ function getFiltered(){
   else{
     qs=ALL_QS.filter(q=>!store.skip.has(q.id));
     if(mode==='cat'&&selCats.size)qs=qs.filter(q=>selCats.has(q.cat));
+    // sub 필터: selSubs가 있으면 해당 sub만, 없으면 선택된 cat 전체
+    if(mode==='cat'&&selSubs.size)qs=qs.filter(q=>selSubs.has(q.sub));
     if(mode==='year'&&selYears.size)qs=qs.filter(q=>selYears.has(q.year));
     if(mode==='src'&&selSrcs.size)qs=qs.filter(q=>selSrcs.has(q.src));
   }
