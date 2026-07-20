@@ -212,8 +212,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 <div id="pw-screen" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
   display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px">
 
-  <!-- 비밀번호 입력 -->
-  <div id="pw-main" style="width:100%;max-width:320px">
+  <!-- ① 비밀번호 입력 패널 -->
+  <div id="pw-main" style="display:block;width:100%;max-width:320px">
     <div style="text-align:center;margin-bottom:32px">
       <div style="font-size:40px;margin-bottom:12px">🔒</div>
       <div style="font-size:22px;font-weight:800;color:#e8eaf6;margin-bottom:6px">NPTE-PT Study</div>
@@ -231,29 +231,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);
     </button>
     <div id="pw-error" style="text-align:center;color:#ef5350;font-size:13px;
       min-height:20px;opacity:0;transition:opacity .2s"></div>
-
-    <!-- 지문 등록 제안 패널 -->
-    <div id="pw-biometric-offer" style="display:none;flex-direction:column;align-items:center;
-      margin-top:20px;padding:20px;background:#1e2035;border:1px solid #2a2d4a;border-radius:14px">
-      <div style="font-size:32px;margin-bottom:10px">👆</div>
-      <div style="font-size:15px;font-weight:700;color:#e8eaf6;margin-bottom:6px">지문/얼굴인식 등록</div>
-      <div style="font-size:12px;color:#546e7a;text-align:center;margin-bottom:16px;line-height:1.6">
-        다음부터 비밀번호 없이<br>생체인식으로 바로 입장할 수 있습니다
-      </div>
-      <button onclick="registerBiometric()"
-        style="width:100%;padding:12px;background:#1b5e20;border:none;border-radius:10px;
-        color:#a5d6a7;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
-        👆 지문/얼굴인식 등록
-      </button>
-      <button onclick="skipBiometric()"
-        style="width:100%;padding:12px;background:transparent;border:1px solid #2a2d4a;
-        border-radius:10px;color:#546e7a;font-size:13px;cursor:pointer">
-        건너뛰기
-      </button>
-    </div>
   </div>
 
-  <!-- 지문 인증 대기 화면 -->
+  <!-- ② 지문 등록 제안 패널 (pw-main과 완전 분리) -->
+  <div id="pw-biometric-offer" style="display:none;flex-direction:column;align-items:center;
+    width:100%;max-width:320px;text-align:center">
+    <div style="font-size:56px;margin-bottom:16px">👆</div>
+    <div style="font-size:20px;font-weight:800;color:#e8eaf6;margin-bottom:8px">지문/얼굴인식 등록</div>
+    <div style="font-size:13px;color:#546e7a;line-height:1.7;margin-bottom:28px">
+      다음부터 비밀번호 없이<br>생체인식으로 바로 입장할 수 있습니다
+    </div>
+    <button onclick="registerBiometric()"
+      style="width:100%;padding:14px;background:#1b5e20;border:none;border-radius:12px;
+      color:#a5d6a7;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      👆 지문/얼굴인식 등록
+    </button>
+    <button onclick="skipBiometric()"
+      style="width:100%;padding:14px;background:transparent;border:1px solid #2a2d4a;
+      border-radius:12px;color:#546e7a;font-size:14px;cursor:pointer">
+      건너뛰기
+    </button>
+  </div>
+
+  <!-- ③ 지문 인증 대기 화면 -->
   <div id="pw-bio-waiting" style="display:none;flex-direction:column;align-items:center;
     width:100%;max-width:320px">
     <div style="font-size:56px;margin-bottom:20px;animation:pulse 1.5s infinite">👆</div>
@@ -637,8 +637,12 @@ function showPwError(msg){
 
 function offerBiometric(){
   const panel = document.getElementById('pw-biometric-offer');
-  if(panel) panel.style.display = 'flex';
-  else authSuccess();
+  if(panel){
+    document.getElementById('pw-main').style.display = 'none';
+    panel.style.display = 'flex';
+  } else {
+    authSuccess();
+  }
 }
 
 async function registerBiometric(){
