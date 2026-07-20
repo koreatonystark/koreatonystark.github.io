@@ -1,6 +1,3 @@
-네, 정확합니다. 이렇게 합치면 됩니다:
-
-```json
 [
   {
     "relation": ["delegate_permission/common.handle_all_urls"],
@@ -19,6 +16,3 @@
     }
   }
 ]
-```
-
-이걸 `koreatonystark.github.io` root repo의 `.well-known/assetlinks.json`에 올리면 두 앱 모두 작동합니다. 앱이 더 생기면 배열에 항목만 추가하면 돼요.
