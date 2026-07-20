@@ -1114,7 +1114,7 @@ function renderModeList(m){
         +'<div data-m="'+m+'" data-id="'+q.id+'" onclick="toggleMlItem(this.dataset.m,this.dataset.id)" style="flex:1;padding:12px 14px;cursor:pointer;min-width:0">'
           +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
             +'<strong style="color:'+color+';font-size:12px">('+q.src+') Q'+q.qnum+'</strong>'
-            +'<span style="font-size:11px;color:var(--text3)">'+escHtml(q.sub||q.cat)+'</span>'
+            +'<span style="font-size:11px;color:var(--text3)">'+escHtml(q.cat+(q.sub?' / '+q.sub:''))+'</span>'
             +'<span id="mla-'+m+'-'+q.id+'" style="margin-left:auto;color:var(--accent2);font-size:18px;transition:transform .2s;display:inline-block">▾</span>'
           +'</div>'
           +'<div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(q.stem.substring(0,65))+(q.stem.length>65?'…':'')+'</div>'
@@ -1486,7 +1486,7 @@ function openSkipScreen(){
           '<div data-id="'+q.id+'" onclick="toggleSkipItem(this.dataset.id)" style="flex:1;padding:13px 14px;cursor:pointer;min-width:0">'+
             '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
               '<strong style="color:var(--warn);font-size:13px">'+(q.allSrcs?q.allSrcs.join(' · '):q.src)+' Q'+q.qnum+'</strong>'+
-              '<span style="font-size:11px;color:var(--text3)">'+q.cat+'</span>'+
+              '<span style="font-size:11px;color:var(--text3)">'+(q.cat+(q.sub?' / '+q.sub:''))+'</span>'+
               '<span id="sia-'+q.id+'" style="color:var(--accent2);font-size:18px;margin-left:auto;transition:transform .25s;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--bg3);flex-shrink:0">▾</span>'+
             '</div>'+
             '<div style="font-size:13px;color:var(--text2);line-height:1.5;word-break:break-word">'+escHtml(q.stem.substring(0,80))+(q.stem.length>80?'…':'')+'</div>'+
