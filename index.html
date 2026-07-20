@@ -1050,16 +1050,16 @@ function toggleChip(set,val,el){
   el.classList.toggle('selected',set.has(val));
   updateBtn();
 }
-function setOrder(o,el){
+function setOrder(o){
   order=o;
   document.querySelectorAll('.chip[data-order]').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
+  document.querySelector('.chip[data-order="'+o+'"]').classList.add('selected');
   updateBtn();
 }
-function setCount(n,el){
+function setCount(n){
   sessCount=n;
-  document.querySelectorAll('.chip[data-count]').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
+  document.querySelectorAll('.chip[data-n]').forEach(c=>c.classList.remove('selected'));
+  document.querySelector('.chip[data-n="'+n+'"]').classList.add('selected');
   updateBtn();
 }
 function getFiltered(){
