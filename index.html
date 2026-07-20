@@ -427,8 +427,14 @@ function showPwError(msg){
 
 function offerBiometric(){
   const panel = document.getElementById('pw-biometric-offer');
-  if(panel) panel.style.display = 'flex';
-  else authSuccess();
+  if(panel){
+    // pw-screen을 먼저 숨겨서 biometric offer 패널이 확실히 보이게
+    const pws = document.getElementById('pw-screen');
+    if(pws) pws.style.display = 'none';
+    panel.style.display = 'flex';
+  } else {
+    authSuccess();
+  }
 }
 
 async function registerBiometric(){
@@ -452,7 +458,13 @@ async function registerBiometric(){
   }
 }
 
-function skipBiometric(){ hideBiometricOffer(); authSuccess(); }
+function skipBiometric(){
+  hideBiometricOffer();
+  // pw-screen도 확실히 숨기기 (offerBiometric 후 pw-screen이 남아있는 경우 대비)
+  const pws = document.getElementById('pw-screen');
+  if(pws) pws.style.display = 'none';
+  authSuccess();
+}
 function hideBiometricOffer(){
   const p = document.getElementById('pw-biometric-offer');
   if(p) p.style.display = 'none';
